@@ -462,7 +462,7 @@ func (ip *InstallationProcess) Execute() (string, error) {
 	var serverNetConfig = config.Get().Docker.Network
 
 	if "ipvlan" == serverNetConfig.Driver { // Generate networking config for ipvlan driver
-		var defaultMapping = e.Config().Allocations().DefaultMapping
+		var defaultMapping = ip.Config().Allocations().DefaultMapping
 		ip.Server.Log().WithField("network_name", serverNetConfig.Name).Info("allocating ipvlan ip to " + defaultMapping.Ip)
 		netConf = &network.NetworkingConfig{
 			EndpointsConfig: map[string]*network.EndpointSettings{
