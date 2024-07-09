@@ -16,6 +16,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
+	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 
 	"github.com/pterodactyl/wings/config"
@@ -457,7 +458,26 @@ func (ip *InstallationProcess) Execute() (string, error) {
 		}
 	}()
 
-	r, err := ip.client.ContainerCreate(ctx, conf, hostConf, nil, nil, ip.Server.ID()+"_installer")
+	var netConf *network.NetworkingConfig = nil
+	var serverNetConfig = config.Get().Docker.Network
+
+	if "ipvlan" == serverNetConfig.Driver { // Generate networking config for ipvlan driver
+		var defaultMapping = e.Config().Allocations().DefaultMapping
+		ip.Server.Log().WithField("network_name", serverNetConfig.Name).Info("allocating ipvlan ip to " + defaultMapping.Ip)
+		netConf = &network.NetworkingConfig{
+			EndpointsConfig: map[string]*network.EndpointSettings{
+				serverNetConfig.Name: { // Get network name from wings config
+					IPAMConfig: &network.EndpointIPAMConfig{
+						IPv4Address: defaultMapping.Ip,
+					},
+					IPAddress: defaultMapping.Ip, // Use default mapping ip address (wings support only one network per server)
+					Gateway:   serverNetConfig.Interfaces.V4.Gateway,
+				},
+			},
+		}
+	}
+
+	r, err := ip.client.ContainerCreate(ctx, conf, hostConf, netConf, nil, ip.Server.ID()+"_installer")
 	if err != nil {
 		return "", err
 	}
